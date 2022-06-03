@@ -272,6 +272,12 @@ contains
     ! Set ldecomp
 
     allocate(ldecomp%gdc2glo(numg), stat=ier)
+
+    !YL--------
+    allocate(ldecomp%ixy(numg), stat=ier)
+    allocate(ldecomp%jxy(numg), stat=ier)
+    !----------
+
     if (ier /= 0) then
        write(iulog,*) 'decompInit_lnd(): allocation error1 for ldecomp, etc'
        call endrun(msg=errMsg(__FILE__, __LINE__))
@@ -283,6 +289,11 @@ contains
     end if
 
     ldecomp%gdc2glo(:) = 0
+    
+    !YL---------
+    ldecomp%ixy(:) = 0
+    ldecomp%jxy(:) = 0
+    !-----------
     ag = 0
 
     ! clumpcnt is the start gdc index of each clump
@@ -302,6 +313,11 @@ contains
        if (cid > 0) then
           ag = clumpcnt(cid)
           ldecomp%gdc2glo(ag) = an
+          !YL------
+          ldecomp%ixy(ag) = ai
+          ldecomp%jxy(ag) = aj
+          !write(iulog,*) 'ldecomp%ixy(ag), ldecomp%jxy(ag): ', ldecomp%ixy(ag), ldecomp%jxy(ag)
+          !--------
           clumpcnt(cid) = clumpcnt(cid) + 1
        end if
     end do
@@ -322,18 +338,19 @@ contains
     deallocate(gindex)
 
     ! Diagnostic output
-
-    if (masterproc) then
-       write(iulog,*)' Surface Grid Characteristics'
-       write(iulog,*)'   longitude points               = ',lni
-       write(iulog,*)'   latitude points                = ',lnj
-       write(iulog,*)'   total number of land gridcells = ',numg
-       write(iulog,*)' Decomposition Characteristics'
-       write(iulog,*)'   clumps per process             = ',clump_pproc
-       write(iulog,*)' gsMap Characteristics'
-       write(iulog,*) '  lnd gsmap glo num of segs      = ',mct_gsMap_ngseg(gsMap_lnd_gdc2glo)
-       write(iulog,*)
-    end if
+    !YL--------
+    ! if (masterproc) then
+     write(iulog,*)' Surface Grid Characteristics'
+     write(iulog,*)'   longitude points               = ',lni
+     write(iulog,*)'   latitude points                = ',lnj
+     write(iulog,*)'   total number of land gridcells = ',numg
+     write(iulog,*)' Decomposition Characteristics'
+     write(iulog,*)'   clumps per process             = ',clump_pproc
+     write(iulog,*)' gsMap Characteristics'
+     write(iulog,*) '  lnd gsmap glo num of segs      = ',mct_gsMap_ngseg(gsMap_lnd_gdc2glo)
+     write(iulog,*)
+    ! end if
+    !----------
 
     call shr_sys_flush(iulog)
 
