@@ -1288,8 +1288,8 @@ contains
            end if
 
            !YL-------           
-           if (is_beg_curr_day()) then
-!           if (is_end_curr_month()) then
+!           if (is_beg_curr_day()) then
+           if (is_end_curr_month()) then
                allocate(seed_id_global(numg))
                allocate(seed_od_long(numg))
                allocate(seed_od_global(numg))
@@ -1412,8 +1412,8 @@ contains
     !$OMP END PARALLEL DO
 
     !YL-------
-    if (is_beg_curr_day()) then
-    !if (is_end_curr_month()) then
+!    if (is_beg_curr_day()) then
+    if (is_end_curr_month()) then
 
        write(iulog,*) 'seed_od_long, seed_od_global: ', seed_od_long, seed_od_global
        call mpi_allreduce(seed_od_long, seed_od_global, numg, MPI_REAL8, MPI_SUM, mpicom, ier)
@@ -1538,8 +1538,8 @@ contains
 
     !YL-------------
     if (use_fates) then
-       if (is_beg_curr_day()) then
-!       if (is_end_curr_month()) then
+!       if (is_beg_curr_day()) then
+       if (is_end_curr_month()) then
           call alm_fates%wrap_seed_dispersal(bounds_clump,seed_id_global)       
        else
           call alm_fates%wrap_seed_dispersal_reset(bounds_clump)
