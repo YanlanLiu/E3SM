@@ -1280,10 +1280,10 @@ contains
                     top_af, atm2lnd_vars, soilstate_vars, temperature_vars, &
                     canopystate_vars, frictionvel_vars)
                !YL------
-               !write(iulog,*) 'nc,alm_fates%fates(nc)%nsites: ', nc, alm_fates%fates(nc)%nsites
-               !do s = 1,alm_fates%fates(nc)%nsites
-               !    write(iulog,*) 's, alm_fates%fates(nc)%bc_out(s): ',s, alm_fates%fates(nc)%bc_out(s)%seed_out
-               !end do
+               write(iulog,*) 'nc,alm_fates%fates(nc)%nsites: ', nc, alm_fates%fates(nc)%nsites
+               do s = 1,alm_fates%fates(nc)%nsites
+                   write(iulog,*) 'loc1, s, alm_fates%fates(nc)%bc_out(s): ',s, alm_fates%fates(nc)%bc_out(s)%seed_out
+               end do
                !--------
            end if
 
@@ -1304,7 +1304,7 @@ contains
                   !write(iulog,*) 'seed_od_long(g): ', seed_od_long(g)
 
                   !do pft = 1, numpft_fates
-                  seed_od_long(g) = seed_od_long(g) + alm_fates%fates(nc)%bc_out(s)%seed_out(7)
+                  seed_od_long(g) = seed_od_long(g) + alm_fates%fates(nc)%bc_out(s)%seed_out(9)
                   !end do
                end do
 
