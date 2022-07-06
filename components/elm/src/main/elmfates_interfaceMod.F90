@@ -2133,19 +2133,24 @@ contains
 
 
  !YL-------------
- subroutine wrap_seed_dispersal(this,bounds_clump,seed_id_global)
+ subroutine wrap_seed_dispersal(this,bounds_clump,seed_id_global,numg)
 
     ! This subroutine pass seed_id_global to bc_in and reset seed_out
+    use FatesInterfaceTypesMod, only                : numpft
 
     ! Arguments
     class(hlm_fates_interface_type), intent(inout) :: this
     type(bounds_type),  intent(in)                 :: bounds_clump
     real(r8),           intent(in)                 :: seed_id_global(:)
+    integer,            intent(in)                 :: numg
+
     ! Local Variables
     integer  :: g                           ! global index of the host gridcell
     integer  :: c                           ! global index of the host column
     integer  :: s                           ! FATES site index
     integer  :: nc                          ! clump index
+    integer  :: pft                         ! pft index
+    integer  :: ig_pft                      ! index of grid-pft
 
     nc = bounds_clump%clump_index
     
@@ -2153,15 +2158,18 @@ contains
        c = this%f2hmap(nc)%fcolumn(s)
        g = col_pp%gridcell(c)
        ! loop over pft. Disperse seeds for pft = 9 for now
-       write(iulog,*) 's, c, g, seed_id_global(g): ', s, c, g, seed_id_global(g)
-       write(iulog,*) 'BEFORE, this%fates(nc)%bc_in(s)%seed_in(9), this%fates(nc)%bc_out(s)%seed_out(9): ', this%fates(nc)%bc_in(s)%seed_in(9), this%fates(nc)%bc_out(s)%seed_out(9)
+       do pft = 1, numpft
+          ig_pft = (pft-1)*numg + g
+          if (seed_id_global(ig_pft)>0._r8) then
+             write(iulog,*) 's, c, g, ig_pft, seed_id_global(ig_pft): ', s, c, g, ig_pft, seed_id_global(ig_pft)
+             write(iulog,*) 'BEFORE, this%fates(nc)%bc_in(s)%seed_in(pft), this%fates(nc)%bc_out(s)%seed_out(pft): ', this%fates(nc)%bc_in(s)%seed_in(pft), this%fates(nc)%bc_out(s)%seed_out(pft)
 
-       ! need to devide seed_id_global by the number of sites in one grid
+             this%fates(nc)%bc_in(s)%seed_in(pft) = seed_id_global(ig_pft)   !/this%fates(nc)%nsites ! assuming equal area for all sites, seed_id_global in [kg/grid/day], seed_in in [kg/site/day]
+             this%fates(nc)%bc_out(s)%seed_out(pft) = 0._r8 ! reset seed_out
 
-       this%fates(nc)%bc_in(s)%seed_in(9) = seed_id_global(g)   !/this%fates(nc)%nsites ! assuming equal area for all sites, seed_id_global in [kg/grid/day], seed_in in [kg/site/day]
-       this%fates(nc)%bc_out(s)%seed_out(9) = 0._r8 ! reset seed_out
-
-       write(iulog,*) 'AFTER, this%fates(nc)%bc_in(s)%seed_in(9), this%fates(nc)%bc_out(s)%seed_out(9): ', this%fates(nc)%bc_in(s)%seed_in(9), this%fates(nc)%bc_out(s)%seed_out(9)
+             write(iulog,*) 'AFTER, this%fates(nc)%bc_in(s)%seed_in(pft), this%fates(nc)%bc_out(s)%seed_out(pft): ', this%fates(nc)%bc_in(s)%seed_in(pft), this%fates(nc)%bc_out(s)%seed_out(pft)
+          end if
+       end do
 
     end do
 
@@ -2172,6 +2180,7 @@ contains
  subroutine wrap_seed_dispersal_reset(this,bounds_clump)
 
     ! This subroutine reset seed_in
+    use FatesInterfaceTypesMod, only                : numpft
 
     ! Arguments
     class(hlm_fates_interface_type), intent(inout) :: this
@@ -2181,6 +2190,7 @@ contains
     integer  :: c                           ! global index of the host column
     integer  :: s                           ! FATES site index
     integer  :: nc                          ! clump index
+    integer  :: pft                         ! pft index
 
     nc = bounds_clump%clump_index
 
@@ -2190,9 +2200,9 @@ contains
        ! loop over pft. Disperse seeds for pft = 9 for now
        !write(iulog,*) 's, c, g: ', s, c, g
        !write(iulog,*) 'BEFORE, this%fates(nc)%bc_in(s)%seed_in(9),this%fates(nc)%bc_out(s)%seed_out(9): ', this%fates(nc)%bc_in(s)%seed_in(9), this%fates(nc)%bc_out(s)%seed_out(9)
-
-       this%fates(nc)%bc_in(s)%seed_in(9) = 0 ! reset 
-
+       do pft = 1, numpft
+          this%fates(nc)%bc_in(s)%seed_in(pft) = 0 ! reset 
+       end do
        !write(iulog,*) 'AFTER, this%fates(nc)%bc_in(s)%seed_in(9),this%fates(nc)%bc_out(s)%seed_out(9): ', this%fates(nc)%bc_in(s)%seed_in(9), this%fates(nc)%bc_out(s)%seed_out(9)
 
     end do

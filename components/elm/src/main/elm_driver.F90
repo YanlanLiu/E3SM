@@ -173,7 +173,7 @@ module elm_driver
   !YL-------
   use clm_time_manager            , only : is_end_curr_year, is_end_curr_month
   use decompMod                   , only : ldecomp, get_proc_global
-  use FatesInterfaceTypesMod      , only : numpft_fates => numpft
+  use FatesInterfaceTypesMod      , only : numpft
   use spmdMod                     , only : MPI_REAL8, MPI_SUM, mpicom
   !--------
 
@@ -238,13 +238,17 @@ contains
     !YL---------
     integer              :: s, pft                ! indices
     integer              :: numg                  ! total number of gridcells across allprocessors
+    integer              :: numg_pft              ! total number of gridcells multiplied by number of pfts
+    integer              :: ig_pft                ! iterator for grid_pft
     integer              :: g_id, g_od            ! gridcell indices in/out-dispersing cells
+    integer              :: g_id_pft, g_od_pft    ! gridcell-pft indices in/out-dispersing cells
     real(r8),    pointer :: neighbors_count(:)    ! complete grid cell array of count
     real(r8),    pointer :: seed_od_long(:)       ! seed_od array for all grid cells,pfts
     real(r8),    pointer :: seed_od_global(:)     ! seed_od array for all grid cells, pfts
     real(r8),    pointer :: seed_id_global(:)       ! complete grid cell array of seed_id
     call get_proc_global(ng=numg)
-    write(iulog,*)'numg', numg
+    numg_pft = numg * numpft
+    write(iulog,*)'numg, numg_pft', numg, numg_pft
     !-----------
 
     !-----------------------------------------------------------------------
@@ -1290,9 +1294,9 @@ contains
            !YL-------           
 !           if (is_beg_curr_day()) then
            if (is_end_curr_month()) then
-               allocate(seed_id_global(numg))
-               allocate(seed_od_long(numg))
-               allocate(seed_od_global(numg))
+               allocate(seed_id_global(numg_pft))
+               allocate(seed_od_long(numg_pft))
+               allocate(seed_od_global(numg_pft))
 
                seed_id_global(:) = 0._r8
                seed_od_long(:) = 0._r8
@@ -1303,12 +1307,13 @@ contains
                   g = col_pp%gridcell(c)
                   !write(iulog,*) 'seed_od_long(g): ', seed_od_long(g)
 
-                  !do pft = 1, numpft_fates
-                  seed_od_long(g) = seed_od_long(g) + alm_fates%fates(nc)%bc_out(s)%seed_out(9)
-                  !end do
+                  do pft = 1, numpft
+                     ig_pft = (pft-1)*numg + g
+                     seed_od_long(ig_pft) = seed_od_long(ig_pft) + alm_fates%fates(nc)%bc_out(s)%seed_out(pft)
+                  end do
                end do
 
-               !write(iulog,*) 'seed_od_long', seed_od_long
+               write(iulog,*) 'seed_od_long', seed_od_long
            end if
            !---------
        end if
@@ -1416,7 +1421,7 @@ contains
     if (is_end_curr_month()) then
 
        write(iulog,*) 'seed_od_long, seed_od_global: ', seed_od_long, seed_od_global
-       call mpi_allreduce(seed_od_long, seed_od_global, numg, MPI_REAL8, MPI_SUM, mpicom, ier)
+       call mpi_allreduce(seed_od_long, seed_od_global, numg_pft, MPI_REAL8, MPI_SUM, mpicom, ier)
        write(iulog,*) 'seed_od_long, seed_od_global: ', seed_od_long,seed_od_global
 
 
@@ -1426,37 +1431,34 @@ contains
        neighbors_count = 0._r8  ! initialize counter vector
 
        do g_od = 1, numg
+          do g_id = 1, numg
+             ! identify neighbors with the ixy, jxy indices of grid cell
+             if (ldecomp%ixy(g_od) == ldecomp%ixy(g_id) - 1 .and.  &
+                 ldecomp%jxy(g_od) == ldecomp%jxy(g_id) - 1 .or. &
 
-          if (seed_od_global(g_od) > 0._r8) then  ! consider finding neighbors only once rather than every month
-             do g_id = 1, numg
-                ! identify neighbors with the ixy, jxy indices of grid cells
-                if (ldecomp%ixy(g_od) == ldecomp%ixy(g_id) - 1 .and.  &
-                    ldecomp%jxy(g_od) == ldecomp%jxy(g_id) - 1 .or. &
+                 ldecomp%ixy(g_od) == ldecomp%ixy(g_id) - 1 .and.  &
+                 ldecomp%jxy(g_od) == ldecomp%jxy(g_id)     .or. &
+   
+                 ldecomp%ixy(g_od) == ldecomp%ixy(g_id) - 1 .and.  &
+                 ldecomp%jxy(g_od) == ldecomp%jxy(g_id) + 1 .or. &
 
-                    ldecomp%ixy(g_od) == ldecomp%ixy(g_id) - 1 .and.  &
-                    ldecomp%jxy(g_od) == ldecomp%jxy(g_id)     .or. &
+                 ldecomp%ixy(g_od) == ldecomp%ixy(g_id)     .and.  &
+                 ldecomp%jxy(g_od) == ldecomp%jxy(g_id) + 1 .or. &
 
-                    ldecomp%ixy(g_od) == ldecomp%ixy(g_id) - 1 .and.  &
-                    ldecomp%jxy(g_od) == ldecomp%jxy(g_id) + 1 .or. &
+                 ldecomp%ixy(g_od) == ldecomp%ixy(g_id) + 1 .and.  &
+                 ldecomp%jxy(g_od) == ldecomp%jxy(g_id) + 1 .or. &
+   
+                 ldecomp%ixy(g_od) == ldecomp%ixy(g_id) + 1 .and.  &
+                 ldecomp%jxy(g_od) == ldecomp%jxy(g_id)     .or. &
 
-                    ldecomp%ixy(g_od) == ldecomp%ixy(g_id)     .and.  &
-                    ldecomp%jxy(g_od) == ldecomp%jxy(g_id) + 1 .or. &
+                 ldecomp%ixy(g_od) == ldecomp%ixy(g_id) + 1 .and.  &
+                 ldecomp%jxy(g_od) == ldecomp%jxy(g_id) - 1 .or. &
 
-                    ldecomp%ixy(g_od) == ldecomp%ixy(g_id) + 1 .and.  &
-                    ldecomp%jxy(g_od) == ldecomp%jxy(g_id) + 1 .or. &
-
-                    ldecomp%ixy(g_od) == ldecomp%ixy(g_id) + 1 .and.  &
-                    ldecomp%jxy(g_od) == ldecomp%jxy(g_id)     .or. &
-
-                    ldecomp%ixy(g_od) == ldecomp%ixy(g_id) + 1 .and.  &
-                    ldecomp%jxy(g_od) == ldecomp%jxy(g_id) - 1 .or. &
-
-                    ldecomp%ixy(g_od) == ldecomp%ixy(g_id)     .and.  &
-                    ldecomp%jxy(g_od) == ldecomp%jxy(g_id) - 1) then
-                   neighbors_count(g_od) = neighbors_count(g_od) + 1 ! assuming all neighbors have equal weight
-                end if  ! find surrounding neighbors
-             end do ! g_id loop
-          end if ! (seed_od_global(g_od) > 0._r8)
+                 ldecomp%ixy(g_od) == ldecomp%ixy(g_id)     .and.  &
+                 ldecomp%jxy(g_od) == ldecomp%jxy(g_id) - 1) then
+                neighbors_count(g_od) = neighbors_count(g_od) + 1 ! assuming all neighbors have equal weight
+             end if  ! find surrounding neighbors
+          end do ! g_id loop
           
 
           if (neighbors_count(g_od) > 0._r8) then
@@ -1483,11 +1485,16 @@ contains
                     ldecomp%jxy(g_od) == ldecomp%jxy(g_id) - 1 .or. &
 
                     ldecomp%ixy(g_od) == ldecomp%ixy(g_id)     .and.  &
-                    ldecomp%jxy(g_od) == ldecomp%jxy(g_id) - 1) then
-                   seed_id_global(g_id) = seed_id_global(g_id) + seed_od_global(g_od) / neighbors_count(g_od)
-
+                    ldecomp%jxy(g_od) == ldecomp%jxy(g_id) - 1) then ! if g_id is the neighbor of g_od
+                   do pft = 1, numpft
+                      g_id_pft = (pft-1)*numg + g_id 
+                      g_od_pft = (pft-1)*numg + g_od
+                      seed_id_global(g_id_pft) = seed_id_global(g_id_pft) + seed_od_global(g_od_pft) / neighbors_count(g_od)
                    ! diagnose seed exchange
-                   write(iulog,*) 'g_id, g_od, seed_od_global(g_od), neighbors_count(g_od), seed_id_global(g_id): ', g_id, g_od, seed_od_global(g_od), neighbors_count(g_od), seed_id_global(g_id)
+                      if (seed_id_global(g_id_pft) > 0._r8) then
+                         write(iulog,*) 'g_id, g_od, pft, seed_od_global(g_od_pft), neighbors_count(g_od), seed_id_global(g_id_pft): ', g_id, g_od, pft, seed_od_global(g_od_pft), neighbors_count(g_od), seed_id_global(g_id_pft)
+                      end if
+                   end do ! pft loop
 
                 end if  ! find surrounding neighbors
              end do  ! g_id
@@ -1540,7 +1547,7 @@ contains
     if (use_fates) then
 !       if (is_beg_curr_day()) then
        if (is_end_curr_month()) then
-          call alm_fates%wrap_seed_dispersal(bounds_clump,seed_id_global)       
+          call alm_fates%wrap_seed_dispersal(bounds_clump,seed_id_global,numg)       
        else
           call alm_fates%wrap_seed_dispersal_reset(bounds_clump)
        end if
